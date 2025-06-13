@@ -660,10 +660,10 @@ class MainDisplay(Display):
     
     ## after selection of of ironing mode the signal will also call a function that updates the bpms passed to the BSABufferClass
     def update_bpms_for_buffer(self,mode,ref_device,target_device,target_area):
-        print('ironing mode = ', mode)
-        print('ref_device = ', ref_device)
-        print('target device= ', target_device)
-        print('target_area = ', target_area)
+        #print('ironing mode = ', mode)
+        #print('ref_device = ', ref_device)
+        #print('target device= ', target_device)
+        #print('target_area = ', target_area)
         if mode == 0:
             bpms = []
             bpms.append(ref_device)
@@ -682,7 +682,7 @@ class MainDisplay(Display):
             if ref_device != target_device:
                 bpms.append(target_device)
 
-        print('list of devices to use!!: ',  bpms)
+        #print('list of devices to use!!: ',  bpms)
         return bpms   
     
     ##misc
