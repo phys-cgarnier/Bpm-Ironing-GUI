@@ -3,6 +3,7 @@ from edef import BSABuffer
 from  datetime import datetime
 import time
 import numpy as np
+
 class BpmBSABuffer():
     def __init__(self,num_measurements:int,dest_masks:str,dest_mode:str,bpm_list:list,*args,**kwargs):
         self.bpm_bsa_buffer = BSABuffer('Chris BPM Testing', user= 'cgarnier')
@@ -33,60 +34,105 @@ class BpmBSABuffer():
         val_in_nel = val_in_c*(6.24257 * np.power(10,18))
         return val_in_nel
 
-    def get_tmit_buffers(self)-> dict: 
-
-        # set up class attributes
+    def get_tmit_buffers(self) -> dict:
+        # Output structures
         self.bpm_tmit_dictionary = {}
         self.bpm_tmit_averages_dictionary = {}
         self.active_bpm_tmit_pvs = []
         self.pulse_id_data = {}
-        #
+        self.failed_devices = {}
         bpm_tmit_pvs = []
-        # get a list of connected bpms (also toros)
+
+        # Step 1: Build list of measurement PVs
         for bpm in self.bpm_list:
-            if bpm.split(':',2)[0] == 'BPMS':
-                bpm_tmit_pvs.append(bpm+':TMIT')
-            elif bpm.split(':',2)[0] == 'TORO':
-                bpm_tmit_pvs.append(bpm+':CHRG')
+            prefix = bpm.split(':', 2)[0]
+            if prefix == 'BPMS':
+                bpm_tmit_pvs.append(bpm + ':TMIT')
+            elif prefix == 'TORO':
+                bpm_tmit_pvs.append(bpm + ':CHRG')
             else:
-                pass
-        
-        print(bpm_tmit_pvs)
+                reason = "Unknown prefix (not BPMS or TORO)"
+                print(f"[WARNING] {bpm}: {reason}")
+                self.failed_devices[bpm] = reason
 
-        got_list=epics.caget_many(bpm_tmit_pvs)
+        print(f"[INFO] Attempting caget_many on {len(bpm_tmit_pvs)} PVs...")
+        try:
+            got_list = epics.caget_many(bpm_tmit_pvs)
+            if got_list is None:
+                reason = "caget_many returned None (CA server may be down)"
+                for pv in bpm_tmit_pvs:
+                    self.failed_devices[pv] = reason
+                return {}, {}, {}
+        except Exception as e:
+            for pv in bpm_tmit_pvs:
+                self.failed_devices[pv] = f"Exception during caget_many: {e}"
+            return {}, {}, {}
 
-        for i in range(len(got_list)):
-            if got_list[i] is not None:
-                self.active_bpm_tmit_pvs.append(bpm_tmit_pvs[i])
+        # Step 2: Check which PVs returned usable values
+        for pv, val in zip(bpm_tmit_pvs, got_list):
+            if val is not None:
+                self.active_bpm_tmit_pvs.append(pv)
             else:
-                print(bpm_tmit_pvs[i], ' ', got_list[i])
+                reason = "Initial caget returned None"
+                print(f"[WARNING] {pv}: {reason}")
+                self.failed_devices[pv] = reason
 
+        if not self.active_bpm_tmit_pvs:
+            print("[ERROR] No active BPM TMIT PVs found.")
+            return {}, {}, {}
 
+        print(f"[INFO] {len(self.active_bpm_tmit_pvs)} active PVs found. Fetching BSA data...")
 
-        # get tmit data buffer, take the average, and store both in class attributes
-        # also store the PID info in class attributes
-        print('start getting pids ' , datetime.now())
-        for i in range(len(self.active_bpm_tmit_pvs)):
-            temp = self.bpm_bsa_buffer.get_data_buffer(self.active_bpm_tmit_pvs[i])
-            ### sometimes taking mean of empty obj
-            if self.active_bpm_tmit_pvs[i].split(':',2)[0] == 'BPMS':
-                ave_tmit = np.mean(temp)
-                self.bpm_tmit_dictionary[self.active_bpm_tmit_pvs[i]] = temp
-                self.bpm_tmit_averages_dictionary[self.active_bpm_tmit_pvs[i]] = ave_tmit   
-                self.pulse_id_data[self.active_bpm_tmit_pvs[i]] = epics.caget(self.active_bpm_tmit_pvs[i]+'PIDHST'+str(self.buffer_num),timeout = 1.5) 
+        # Step 3: Get buffer data
+        for pv in self.active_bpm_tmit_pvs:
+            try:
+                tmit_buffer = self.bpm_bsa_buffer.get_data_buffer(pv)
 
-            elif self.active_bpm_tmit_pvs[i].split(':',2)[0] == 'TORO':
-                print('Converting bsa data for toroid charge pv from charge in pico-couloumbs to number of electrons.')
-                toro_tmit_pv = self.active_bpm_tmit_pvs[i].rsplit(':',1)[0] +':TMIT'
-                toro_tmits_from_chrg = []
-                for val_in_pc in temp:
-                    toro_tmits_from_chrg.append(self.convert_chrg_to_tmit(val_in_pc))
+                if tmit_buffer is None or len(tmit_buffer) == 0:
+                    reason = "Empty or None tmit buffer"
+                    print(f"[WARNING] {pv}: {reason}")
+                    self.failed_devices[pv] = reason
+                    continue
 
-                ave_tmit = np.mean(toro_tmits_from_chrg)
-                self.bpm_tmit_dictionary[toro_tmit_pv] = toro_tmits_from_chrg
-                self.bpm_tmit_averages_dictionary[toro_tmit_pv] = ave_tmit
-                self.pulse_id_data[toro_tmit_pv] = epics.caget(self.active_bpm_tmit_pvs[i]+'PIDHST'+str(self.buffer_num),timeout = 1.5) 
-            
-        print('end getting pids ', datetime.now())
+                prefix = pv.split(':', 2)[0]
+
+                if prefix == 'BPMS':
+                    ave_tmit = np.mean(tmit_buffer)
+                    self.bpm_tmit_dictionary[pv] = tmit_buffer
+                    self.bpm_tmit_averages_dictionary[pv] = ave_tmit
+                    pid_pv = pv + 'PIDHST' + str(self.buffer_num)
+
+                elif prefix == 'TORO':
+                    toro_tmit_pv = pv.rsplit(':', 1)[0] + ':TMIT'
+                    converted = [self.convert_chrg_to_tmit(val_in_pc) for val_in_pc in tmit_buffer if val_in_pc is not None]
+
+                    if len(converted) == 0:
+                        reason = "All CHRG values were None or failed conversion"
+                        print(f"[WARNING] {pv}: {reason}")
+                        self.failed_devices[pv] = reason
+                        continue
+
+                    ave_tmit = np.mean(converted)
+                    self.bpm_tmit_dictionary[toro_tmit_pv] = converted
+                    self.bpm_tmit_averages_dictionary[toro_tmit_pv] = ave_tmit
+                    pid_pv = pv + 'PIDHST' + str(self.buffer_num)
+
+                try:
+                    pid_data = epics.caget(pid_pv, timeout=1.5)
+                    if pid_data is not None:
+                        self.pulse_id_data[pid_pv] = pid_data
+                    else:
+                        self.failed_devices[pid_pv] = "Pulse ID caget returned None"
+                except Exception as e:
+                    self.failed_devices[pid_pv] = f"Pulse ID caget exception: {e}"
+
+            except Exception as e:
+                self.failed_devices[pv] = f"Exception during data buffer fetch: {e}"
+
+        print(f"[INFO] Done at {datetime.now()}")
+        if self.failed_devices:
+            print("[SUMMARY] Failed Devices:")
+            for k, v in self.failed_devices.items():
+                print(f"  - {k}: {v}")
 
         return self.bpm_tmit_dictionary, self.bpm_tmit_averages_dictionary, self.pulse_id_data
