@@ -40,55 +40,94 @@ class PlotGrid(QGridLayout):
         self.ironed_tmit_plot.setLabel('left','Ironed TMIT (Nel)')
         self.ironed_tmit_plot.setLabel('bottom', 'Pulse #')
 
-    def update_plots( self,tmit:Dict[str,List[float]],tmit_ave:Dict[str,float],
-                      ratios:Dict[str,float],z_pos:Dict[str,float],ref_bpm:str ):
-        self.tmit_vs_bsa_plot.clear()
-        self.ave_tmit_vs_z_splot.clear()
-        self.ratios_vs_z_splot.clear()
-        t_keys = list(tmit.keys())
-        num_points = len(tmit[t_keys[0]])
-        x_data = []
-        for i in range(num_points):
-            x_data.append(i)
-        for i in range(len(t_keys)):
-            try:
-                if ref_bpm in t_keys[i]:
-                    continue
-                else:
-                    self.tmit_vs_bsa_plot.plot(x_data,tmit[t_keys[i]],pen=(i,len(t_keys)))
-            except Exception:
-                print(tmit[t_keys[i]])
-        mk_pen = pg.mkPen(color = (255,255,255), width = 5, style = QtCore.Qt.DashLine)
-        self.tmit_vs_bsa_plot.plot(x_data,tmit[ref_bpm+':TMIT'],pen=mk_pen)
-        self.ave_tmit_vs_z_splot.setData(list(z_pos.values()),list(tmit_ave.values()))
-        self.ratios_vs_z_splot.setData(list(z_pos.values()),list(ratios.values()))
+    def update_plots(self, tmit: Dict[str, List[float]], tmit_ave: Dict[str, float],
+                     ratios: Dict[str, float], z_pos: Dict[str, float], ref_bpm: str):
+        try:
+            self.tmit_vs_bsa_plot.clear()
+            self.ave_tmit_vs_z_splot.clear()
+            self.ratios_vs_z_splot.clear()
 
-    def update_ironed_plot(self,updated_tmit_dict:Dict[str,List[float]],ref_bpm:str):
-        self.ironed_tmit_plot.clear()
-        t_keys = list(updated_tmit_dict.keys())
-        num_points = len(updated_tmit_dict[t_keys[0]])
-        x_data = []
-        for i in range(num_points):
-            x_data.append(i)
-        for i in range(len(t_keys)):
-            try:
-                if ref_bpm in t_keys[i]:
-                    continue
-                else:
-                    self.ironed_tmit_plot.plot(x_data,updated_tmit_dict[t_keys[i]],pen=(i,len(t_keys)))
-            except Exception:
-                print(updated_tmit_dict[t_keys[i]])
-        mk_pen = pg.mkPen(color = (255,255,255), width = 5, style = QtCore.Qt.DashLine)
-        self.ironed_tmit_plot.plot(x_data,updated_tmit_dict[ref_bpm+':TMIT'],pen=mk_pen)
+            t_keys = list(tmit.keys())
+            if not t_keys:
+                print("No TMIT keys to plot.")
+                return
 
-    def update_ironed_plot_single(self,updated_tmit_dict,ref_bpm,dev):
-        self.ironed_tmit_plot.clear()
-        bpms_to_plot = []
-        bpms_to_plot.append(ref_bpm+':TMIT')
-        bpms_to_plot.append(dev+':TMIT')
-        num_points = len(updated_tmit_dict[bpms_to_plot[0]])
-        x_data = []
-        for i in range(num_points):
-            x_data.append(i)
-        for i in range(len(bpms_to_plot)):
-            self.ironed_tmit_plot.plot(x_data,updated_tmit_dict[bpms_to_plot[i]],pen=(i,len(bpms_to_plot))) 
+            num_points = len(tmit.get(t_keys[0], []))
+            x_data = list(range(num_points))
+
+            for i, key in enumerate(t_keys):
+                try:
+                    if ref_bpm in key:
+                        continue
+                    self.tmit_vs_bsa_plot.plot(x_data, tmit[key], pen=(i, len(t_keys)))
+                except Exception as e:
+                    print(f"[Plot Error] Could not plot {key}: {e}")
+
+            try:
+                ref_key = f"{ref_bpm}:TMIT"
+                mk_pen = pg.mkPen(color=(255, 255, 255), width=5, style=QtCore.Qt.DashLine)
+                self.tmit_vs_bsa_plot.plot(x_data, tmit[ref_key], pen=mk_pen)
+            except Exception as e:
+                print(f"[Ref Plot Error] {ref_key} missing or malformed: {e}")
+
+            try:
+                self.ave_tmit_vs_z_splot.setData(list(z_pos.values()), list(tmit_ave.values()))
+            except Exception as e:
+                print(f"[Ave TMIT Plot Error] {e}")
+
+            try:
+                self.ratios_vs_z_splot.setData(list(z_pos.values()), list(ratios.values()))
+            except Exception as e:
+                print(f"[Ratios Plot Error] {e}")
+
+        except Exception as e:
+            print(f"[Update Plots Error] {e}")
+
+
+
+    def update_ironed_plot(self, updated_tmit_dict: Dict[str, List[float]], ref_bpm: str):
+        try:
+            self.ironed_tmit_plot.clear()
+            t_keys = list(updated_tmit_dict.keys())
+            if not t_keys:
+                print("No keys in updated_tmit_dict.")
+                return
+
+            num_points = len(updated_tmit_dict.get(t_keys[0], []))
+            x_data = list(range(num_points))
+
+            for i, key in enumerate(t_keys):
+                try:
+                    if ref_bpm in key:
+                        continue
+                    self.ironed_tmit_plot.plot(x_data, updated_tmit_dict[key], pen=(i, len(t_keys)))
+                except Exception as e:
+                    print(f"[Ironed Plot Error] Key: {key}, Error: {e}")
+
+            try:
+                ref_key = f"{ref_bpm}:TMIT"
+                mk_pen = pg.mkPen(color=(255, 255, 255), width=5, style=QtCore.Qt.DashLine)
+                self.ironed_tmit_plot.plot(x_data, updated_tmit_dict[ref_key], pen=mk_pen)
+            except Exception as e:
+                print(f"[Ref Ironed Plot Error] {ref_key} missing or malformed: {e}")
+
+        except Exception as e:
+            print(f"[Update Ironed Plot Error] {e}")
+
+
+    def update_ironed_plot_single(self, updated_tmit_dict: Dict[str, List[float]], ref_bpm: str, dev: str):
+        try:
+            self.ironed_tmit_plot.clear()
+            bpms_to_plot = [f"{ref_bpm}:TMIT", f"{dev}:TMIT"]
+
+            num_points = len(updated_tmit_dict.get(bpms_to_plot[0], []))
+            x_data = list(range(num_points))
+
+            for i, key in enumerate(bpms_to_plot):
+                try:
+                    self.ironed_tmit_plot.plot(x_data, updated_tmit_dict[key], pen=(i, len(bpms_to_plot)))
+                except Exception as e:
+                    print(f"[Single Ironed Plot Error] {key}: {e}")
+
+        except Exception as e:
+            print(f"[Update Ironed Single Plot Error] {e}")
