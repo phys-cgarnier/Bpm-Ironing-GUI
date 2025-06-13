@@ -87,8 +87,9 @@ class BpmBSABuffer():
         for pv in self.active_bpm_tmit_pvs:
             try:
                 tmit_buffer = self.bpm_bsa_buffer.get_data_buffer(pv)
-
+                epics_tmit_buffer = epics.caget(f"{pv}HST{self.buffer_num}",timeout=1.5)
                 if tmit_buffer is None or len(tmit_buffer) == 0:
+                    print(f"{pv} with tmit_buffer {tmit_buffer} and epics buffer {epics_tmit_buffer}")
                     reason = "Empty or None tmit buffer"
                     print(f"[WARNING] {pv}: {reason}")
                     self.failed_devices[pv] = reason
