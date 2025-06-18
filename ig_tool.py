@@ -23,24 +23,14 @@ class BpmIroningTool():
                 pass
             else:
                 key_is_device = key_is_pv_name.rsplit(':',1)[0]
-                tmit_ratios[key_is_device] = ref_val_tmit/tmit_aves_dict[key_is_pv_name]
-        ###add check that ref bpm ratio is 1.0 if it is pop it from the list
-        # this was  messing up plotting
-        #if ref_bpm in tmit_ratios and tmit_ratios[ref_bpm] == 1.00:
-        #   del tmit_ratios[ref_bpm]
-        #else:
-        #    print(f'{ref_bpm} does not have a ratio of 1.00')   
+                ratios = ref_val_tmit/tmit_aves_dict[key_is_pv_name]
+                tmit_ratios[key_is_device] = round(ratios, 3)
         return tmit_ratios
     
     @staticmethod
     def create_put_scl_vals_dict( tmit_ratios:Dict[str,float],
                                   scl_vals_dict:Dict[str,float],scl_ext:str,ref_bpm:str )->Dict[str,float]:
-        #TODO: remove scl_ext, use iterate over scl_vals_dict and, get tmit_ratiot key from, actually dont.... :FW:QSCL
-        # vs QSCL will be annoying to sort
-        #TODO NEED checks
- 
         put_scl_vals_dict = {}
-
         tmit_ratios_key_list = [key for key in tmit_ratios]
         for key in tmit_ratios_key_list:
             if 'TORO' in key:
@@ -49,7 +39,8 @@ class BpmIroningTool():
                 continue
             else:
                 scl_key = key + scl_ext
-                put_scl_vals_dict[scl_key] = scl_vals_dict[scl_key] * tmit_ratios[key]
+                put_val = scl_vals_dict[scl_key] * tmit_ratios[key]
+                put_scl_vals_dict[scl_key] = round(put_val, 3)
         return put_scl_vals_dict
     
     @staticmethod
