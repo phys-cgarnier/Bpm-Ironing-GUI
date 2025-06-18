@@ -30,7 +30,8 @@ class MainDisplay(Display):
         self.app.installEventFilter(self)
         #self.append_stylesheet(self.bpm_stylesheet)
         #TODO: add macro for dump file with default
-        #TODO: add macro for overriding sw ironing (do not sw iron flag)
+        # i think this means I need to create a main function that does logging.
+        #TODO: add macro for overriding sw ironing (do not sw iron flag) -- done
         if macros:
             self.class_macros = macros
             print(macros)
@@ -39,6 +40,8 @@ class MainDisplay(Display):
         self.target_bpm = 'BPMS:GUNB:314'
         self.target_area = 'GUNB'
         self.default_iron_mode = int(self.class_macros['iron_mode'])
+        self.sw_flag = bool(self.class_macros.get('iron_sw', True))
+        #print(f"sw flag : {self.sw_flag}, {type(self.sw_flag)} ")
         self.ironing_mode = self.default_iron_mode
         self.dest_mask = ['SC_BSYD']
         self.beamlines = ['SC_BSYD', 'SC_DIAG0','SC_HXR (GUNB-SLTH)', 'SC_HXR (BSYH-DMPH)','SC_SXR (GUNB-SLTS)', 'SC_SXR (SLTS-DMPS)']
@@ -283,7 +286,6 @@ class MainDisplay(Display):
             self.target_area_combo_box.addItem(area)
 
     def ironing_mode_toggle(self):
-        #TODO: code is reused can simplyify this
         if self.radio_buttons[0].isChecked():
             self.ironing_mode = 0
             self.ironing_single_label.hide()
@@ -474,10 +476,6 @@ class MainDisplay(Display):
         self.setup_bsa_buffer()
         self.prep_all_assets()
 
-
-
-
-
         self.acquisition_ctrl_button.setStyleSheet('')
         self.acquisition_ctrl_button.setEnabled(True)
         self.acquisition_ctrl_button.blockSignals(False)
@@ -508,6 +506,8 @@ class MainDisplay(Display):
         # after combining and ensure it works. 
         # have the buffer acquisition happen on another thread and lock the button. 
         # the other thread will do the work and call back to the button to repaint
+
+    
     def prep_all_assets(self):
         '''
         Sends pulse_id_data and bpm_tmit to IroningCleaningTool and returns dictionaries that are cleaned of all failures.
@@ -519,7 +519,7 @@ class MainDisplay(Display):
         ( self.wrong_size_nord_dictionary, self.cleaned_pid_dict, self.cleaned_tmit_dict, self.cleaned_ave_tmits_dict,
           self.bpm_pid_counts_by_meas, self.bpm_pid_devs_by_meas, self.total_failures ) = self.cleaning_tool.return_all_dictionaries()
         print('printing total failures')
-        pprint.pprint(self.total_failures)
+        #pprint.pprint(self.total_failures)
         #pprint.pprint(self.wrong_size_nord_dictionary)
         #pprint.pprint(self.cleaned_pid_dict)
         #pprint.pprint(self.cleaned_tmit_dict)
@@ -529,28 +529,23 @@ class MainDisplay(Display):
         self.create_scl_pv_dicts(self.cleaned_tmit_dict)
 
         self.ironing_tool = BpmIroningTool()
-        #TODO: change the name of this functio call
+
         self.tmits_ratiod_to_ref = self.ironing_tool.create_tmits_ratiod_dict(self.ref_bpm,self.cleaned_ave_tmits_dict)
         pprint.pprint(self.tmits_ratiod_to_ref)
-        #TODO: get ratios for plotting
-        # then plot signals?
         self.plot_grid.update_plots( self.cleaned_tmit_dict,self.cleaned_ave_tmits_dict,
                                      self.tmits_ratiod_to_ref,self.z_pos_pvs,self.ref_bpm )
         self.put_fwscl_vals = self.ironing_tool.create_put_scl_vals_dict(self.tmits_ratiod_to_ref,self.bpm_fw_scl_pvs,':FW:QSCL',self.ref_bpm)
         self.put_swscl_vals = self.ironing_tool.create_put_scl_vals_dict(self.tmits_ratiod_to_ref,self.bpm_sw_scl_pvs,':QSCL',self.ref_bpm)
-        pprint.pprint(self.put_fwscl_vals)
-        pprint.pprint(self.put_swscl_vals)
-
-
+        #pprint.pprint(self.put_fwscl_vals)
+        #pprint.pprint(self.put_swscl_vals)
 
 
     def create_scl_pv_dicts(self,tmit_dict:Dict[str,Any]):
-
         # set up class attributes for plotting
         self.z_pos_pvs = {}
         self.bpm_fw_scl_pvs = {}
         self.bpm_sw_scl_pvs = {}
-        #
+
         z_pos_pvs = []
         fw_scl_pvs = []
         sw_scl_pvs = []
@@ -576,8 +571,7 @@ class MainDisplay(Display):
         # pprint.pprint(self.bpm_fw_scl_pvs)
         # pprint.pprint(self.bpm_sw_scl_pvs)
 
-        #TODO: should be no additionally None values here but it doesn't hurt to do a check anyways.
-    '''print(len(self.bpm_tmits),' ',len(self.bpm_ave_tmits), ' ' ,len(self.bpm_fw_scls),' ' , len(self.bpm_sw_scls) )'''
+
     def ironing_button_signal(self):
         self.ironing_ctrl_button.setText('Processing... Please wait for plots to load')
         self.ironing_ctrl_button.setEnabled(False)
@@ -592,24 +586,17 @@ class MainDisplay(Display):
         self.ironing_ctrl_button.setStyleSheet('')
         self.ironing_ctrl_button.setEnabled(True)
         self.ironing_ctrl_button.setText('Iron BPMs')
+
     def iron_bpms(self,mode):
-         # The dictionary should be different depending on mode 1 or 2, coul simplify or make it explicit its the same action
-        if mode == 0:          
+        if mode == 0 or mode == 1:          
             self.ironing_tool.iron_devices(self.put_fwscl_vals)
-            if self.prepped_desk_mask not in ['SC_SXR (SLTS-DMPS)','SC_HXR (BSYH-DMPH)']:            
+            if self.sw_flag == True:
                 self.ironing_tool.iron_devices(self.put_swscl_vals)
             else:
-                print('Do not attempt to iron downstream bpms')
-        elif mode == 1:
-            self.ironing_tool.iron_devices(self.put_fwscl_vals)
-            if self.prepped_desk_mask not in ['SC_SXR (SLTS-DMPS)','SC_HXR (BSYH-DMPH)']:            
-                self.ironing_tool.iron_devices(self.put_swscl_vals)
-            else:
-                print('Do not attempt to iron downstream bpms')
-            #print(traceback.format_exc())
+                print('SW Ironing is in override mode, will not iron software values for all bpms')
         elif mode == 2:
             self.ironing_tool.iron_single_device(self.put_fwscl_vals,self.target_bpm,':FW:QSCL')
-            if self.prepped_desk_mask not in ['SC_SXR (SLTS-DMPS)','SC_HXR (BSYH-DMPH)']:
-                self.ironing_tool.iron_single_device(self.put_swscl_vals,self.target_bpm,':QSCL')
+            if self.sw_flag == True:
+                self.ironing_tool.iron_single_device(self.put_swscl_vals)
             else:
-                print('Do not attempt to iron the SW on downstream bpms')
+                print('SW Ironing is in override mode, will not iron software values for all bpms')
