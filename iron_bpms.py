@@ -7,10 +7,12 @@ from pydm.widgets.enum_button import PyDMEnumButton
 from pydm.utilities.stylesheet import GLOBAL_STYLESHEET
 from functools import partial
 import epics
-import numpy as np
-from bpm_bsa_buffer import BpmBSABuffer
-from bpm_ironing_cleaning_tool import IroningCleaningTool
-from bpm_ironing_tool import BpmIroningTool
+
+
+
+from ig_bsa import BpmBSABuffer
+from ig_cleaning import IroningCleaningTool
+from ig_tool import BpmIroningTool
 from ig_plot_grid import PlotGrid
 import pprint
 from typing import Dict,List,Any
