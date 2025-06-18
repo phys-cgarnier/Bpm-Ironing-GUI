@@ -8,4 +8,5 @@ if [ "$#" -eq 3 ]; then
     echo "Using provided args"
     pydm -m  "num=$1, mode=$2, iron_mode=$3" $IRON_SCRIPT&
 else
-    pydm -m  "num=50, mode=Inclusion, iron_mode=0" $IRON_SCRIPT&fi
+    pydm -m  "num=50, mode=Inclusion, iron_mode=0" $IRON_SCRIPT&
+fi
