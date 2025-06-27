@@ -164,7 +164,7 @@ class MainDisplay(Display):
         self.acquisition_ctrl_button = PyDMPushButton('Prepare Ironing')
         self.ironing_ctrl_button = PyDMPushButton('Iron BPMs')     
         self.dropdown_hider = QCheckBox()
-
+        self.undo_ironing_button = PyDMPushButton('Undo Ironing')
         ####make widget setup calls and set additional properties
        
         self.setup_target_device_combo_box()
@@ -177,6 +177,7 @@ class MainDisplay(Display):
         self.target_area_combo_box.hide()
 
         self.dropdown_hider.setChecked(False)
+        self.undo_ironing_button.hide()
         self.side_widget.hide()
 
         ### stylize all widgets 
@@ -200,6 +201,7 @@ class MainDisplay(Display):
         self.bottom_widget_layout.addWidget(self.ironing_ctrl_button,8,0,1,2)
         self.bottom_widget_layout.addWidget(widget_checkbox_label,9,0)
         self.bottom_widget_layout.addWidget(self.dropdown_hider,9,1)
+        self.bottom_widget_layout.addWidget(self.undo_ironing_button,9,2)
 
         #### give widgets signals 
         self.setup_default_ironing_mode() ## sets up default but should also trigger clicked
@@ -213,6 +215,7 @@ class MainDisplay(Display):
         self.target_device_combo_box.currentIndexChanged.connect(self.update_target_device)
         self.target_area_combo_box.currentIndexChanged.connect(self.update_target_area)
         self.ironing_ctrl_button.clicked.connect(self.ironing_button_signal)
+        self.undo_ironing_button.clicked.connect(self.undo_ironing_button_signal)
         #self.ironing_single_target_ctrl_button.clicked.connect(self.ironing_single_signal)
     
     
@@ -586,6 +589,7 @@ class MainDisplay(Display):
         self.ironing_ctrl_button.setStyleSheet('')
         self.ironing_ctrl_button.setEnabled(True)
         self.ironing_ctrl_button.setText('Iron BPMs')
+        self.undo_ironing_button.show()
 
     def iron_bpms(self,mode):
         if mode == 0 or mode == 1:          
@@ -600,3 +604,6 @@ class MainDisplay(Display):
                 self.ironing_tool.iron_single_device(self.put_swscl_vals)
             else:
                 print('SW Ironing is in override mode, will not iron software values for all bpms')
+    
+    def undo_ironing_button_signal(self):
+        print('undo ironing logic here')
