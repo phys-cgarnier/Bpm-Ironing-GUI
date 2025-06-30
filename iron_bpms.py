@@ -57,10 +57,6 @@ class MainDisplay(Display):
         self.signal_processing_enabled = True
         self.prepped_desk_mask = None
 
-        #instance attributes for undo
-        self.previous_fw_qscls = {}
-        self.previous_sw_qscls = {}
-
         self.setup_ui() #fine before rework
         self.resize(*self.default_size) #fine before rework
         self.setup_dropdown_info() # commented out signal to show new table
@@ -199,9 +195,10 @@ class MainDisplay(Display):
         self.bottom_widget_layout.addWidget(self.target_area_combo_box,6,1)
         self.bottom_widget_layout.addWidget(self.acquisition_ctrl_button,7,0,1,2)
         self.bottom_widget_layout.addWidget(self.ironing_ctrl_button,8,0,1,2)
-        self.bottom_widget_layout.addWidget(widget_checkbox_label,9,0)
-        self.bottom_widget_layout.addWidget(self.dropdown_hider,9,1)
-        self.bottom_widget_layout.addWidget(self.undo_ironing_button,9,2)
+        self.bottom_widget_layout.addWidget(self.undo_ironing_button,9,0,1,2)
+        self.bottom_widget_layout.addWidget(widget_checkbox_label,10,0)
+        self.bottom_widget_layout.addWidget(self.dropdown_hider,10,1)
+
 
         #### give widgets signals 
         self.setup_default_ironing_mode() ## sets up default but should also trigger clicked
@@ -539,7 +536,8 @@ class MainDisplay(Display):
                                      self.tmits_ratiod_to_ref,self.z_pos_pvs,self.ref_bpm )
         self.put_fwscl_vals = self.ironing_tool.create_put_scl_vals_dict(self.tmits_ratiod_to_ref,self.bpm_fw_scl_pvs,':FW:QSCL',self.ref_bpm)
         self.put_swscl_vals = self.ironing_tool.create_put_scl_vals_dict(self.tmits_ratiod_to_ref,self.bpm_sw_scl_pvs,':QSCL',self.ref_bpm)
-        #pprint.pprint(self.put_fwscl_vals)
+        pprint.pprint(self.bpm_fw_scl_pvs)
+        pprint.pprint(self.put_fwscl_vals)
         #pprint.pprint(self.put_swscl_vals)
 
 
@@ -580,6 +578,7 @@ class MainDisplay(Display):
         self.ironing_ctrl_button.setEnabled(False)
         self.ironing_ctrl_button.setStyleSheet('background-color:blue')
         self.ironing_ctrl_button.repaint()
+
         self.iron_bpms(self.ironing_mode)
         self.setup_bsa_buffer()
         # need to grab new bpm tmits from bsa? maybe clean here or maybe its unnecessary? 
@@ -592,18 +591,39 @@ class MainDisplay(Display):
         self.undo_ironing_button.show()
 
     def iron_bpms(self,mode):
-        if mode == 0 or mode == 1:          
-            self.ironing_tool.iron_devices(self.put_fwscl_vals)
-            if self.sw_flag == True:
-                self.ironing_tool.iron_devices(self.put_swscl_vals)
-            else:
-                print('SW Ironing is in override mode, will not iron software values for all bpms')
-        elif mode == 2:
-            self.ironing_tool.iron_single_device(self.put_fwscl_vals,self.target_bpm,':FW:QSCL')
-            if self.sw_flag == True:
-                self.ironing_tool.iron_single_device(self.put_swscl_vals)
-            else:
-                print('SW Ironing is in override mode, will not iron software values for all bpms')
-    
+        self.previous_target_bpm = self.target_bpm
+        self.previous_fw_qscls=self.bpm_fw_scl_pvs.copy()
+        self.previous_sw_qscls=self.bpm_sw_scl_pvs.copy()
+        self.previous_ironing_mode = mode
+        try:
+            if mode == 0 or mode == 1:          
+                self.ironing_tool.iron_devices(self.put_fwscl_vals)
+                if self.sw_flag == True:
+                    self.ironing_tool.iron_devices(self.put_swscl_vals)
+                else:
+                    print('SW Ironing is in override mode, will not iron software values for all bpms')
+            elif mode == 2:
+                self.ironing_tool.iron_single_device(self.put_fwscl_vals,self.target_bpm,':FW:QSCL')
+                if self.sw_flag == True:
+                    self.ironing_tool.iron_single_device(self.put_swscl_vals, self.target_bpm, ':QSCL')
+                else:
+                    print('SW Ironing is in override mode, will not iron software values for all bpms')
+        except Exception as e:
+            print(f'An error {e} occurred')
+
     def undo_ironing_button_signal(self):
-        print('undo ironing logic here')
+            try:
+                if self.previous_ironing_mode == 0 or self.previous_ironing_mode == 1:          
+                    self.ironing_tool.iron_devices(self.previous_fw_qscls)
+                    if self.sw_flag == True:
+                        self.ironing_tool.iron_devices(self.previous_sw_qscls)
+                    else:
+                        print('SW Ironing is in override mode, will not iron software values for all bpms')
+                elif self.previous_ironing_mode == 2:
+                    self.ironing_tool.iron_single_device(self.previous_fw_qscls,self.previous_target_bpm,':FW:QSCL')
+                    if self.sw_flag == True:
+                        self.ironing_tool.iron_single_device(self.previous_sw_qscls, self.previous_target_bpm, ':QSCL')
+                    else:
+                        print('SW Ironing is in override mode, will not iron software values for all bpms')
+            except Exception as e:
+                print(f'An error {e} occurred')
