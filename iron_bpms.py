@@ -2,7 +2,7 @@ import os
 from qtpy import QtCore,QtGui
 from pydm import Display
 from qtpy.QtWidgets import QApplication, QVBoxLayout, QLabel, QWidget, QHBoxLayout, QScrollArea, QGridLayout,QSpacerItem, QSizePolicy, QComboBox,QTableWidget,QHeaderView,QTableWidgetItem,QCheckBox,QMessageBox, QRadioButton
-from pydm.widgets import PyDMPushButton
+from pydm.widgets import PyDMPushButton, PyDMLabel
 from pydm.widgets.enum_button import PyDMEnumButton
 from pydm.utilities.stylesheet import GLOBAL_STYLESHEET
 from functools import partial
@@ -30,6 +30,8 @@ class MainDisplay(Display):
         self.app.installEventFilter(self)
         #self.append_stylesheet(self.bpm_stylesheet)
         #TODO: add macro for dump file with default
+        #TODO: add rate rbv? add cancel button?
+        #TODO: check if rate before aquiring
         # i think this means I need to create a main function that does logging.
         #TODO: add macro for overriding sw ironing (do not sw iron flag) -- done
         if macros:
@@ -47,6 +49,7 @@ class MainDisplay(Display):
         self.beamlines = ['SC_BSYD', 'SC_DIAG0','SC_HXR (GUNB-SLTH)', 'SC_HXR (BSYH-DMPH)','SC_SXR (GUNB-SLTS)', 'SC_SXR (SLTS-DMPS)']
         self.ironing_modes = ['All','Area','Single']
         self.run_modes = ['Inclusion','Exclusion','Disable']
+        self.rate_pv_name = 'TPG:SYS0:1:DST02:RATE_RBV'
         self.bpms_in_line = sc_bpm_common_list+sc_bsyd_list #### this gets updated when a beamline is chosen
         self.bpms_for_bsa = self.bpms_in_line
         self.bold_font = QtGui.QFont()
@@ -128,6 +131,9 @@ class MainDisplay(Display):
         widget_beamline_label = QLabel('Beamline')
         widget_buffer_number = QLabel('BSA Buffer # ')
         self.buffer_num_rdbk = QLabel('# Buffer')
+        self.rate_label = QLabel('Beamline Rate') #maybe need to update
+        self.rate_pv_label = PyDMLabel()
+        self.rate_pv_label.channel = self.rate_pv_name
         widget_checkbox_label  = QLabel('Display More Info')
         widget_run_mode_label = QLabel('Ironing Run Mode')
         # maybe add a widget that checks for rate.
@@ -183,21 +189,23 @@ class MainDisplay(Display):
         self.bottom_widget_layout.addWidget(widget_header_label,0,0,1,2)
         self.bottom_widget_layout.addWidget(widget_buffer_number,1,0)
         self.bottom_widget_layout.addWidget(self.buffer_num_rdbk,1,1)
-        self.bottom_widget_layout.addWidget(widget_reference_label,3,0)
-        self.bottom_widget_layout.addWidget(self.reference_device,3,1)
-        self.bottom_widget_layout.addWidget(widget_beamline_label,2,0)
-        self.bottom_widget_layout.addWidget(self.beamline_combo_box,2,1)
-        self.bottom_widget_layout.addWidget(widget_run_mode_label,4,0)
-        self.bottom_widget_layout.addWidget(self.radio_widget,4,1)
-        self.bottom_widget_layout.addWidget(self.ironing_single_label,5,0)
-        self.bottom_widget_layout.addWidget(self.target_device_combo_box,5,1)
-        self.bottom_widget_layout.addWidget(self.ironing_area_label,6,0)
-        self.bottom_widget_layout.addWidget(self.target_area_combo_box,6,1)
-        self.bottom_widget_layout.addWidget(self.acquisition_ctrl_button,7,0,1,2)
-        self.bottom_widget_layout.addWidget(self.ironing_ctrl_button,8,0,1,2)
-        self.bottom_widget_layout.addWidget(self.undo_ironing_button,9,0,1,2)
-        self.bottom_widget_layout.addWidget(widget_checkbox_label,10,0)
-        self.bottom_widget_layout.addWidget(self.dropdown_hider,10,1)
+        self.bottom_widget_layout.addWidget(self.rate_label,2,0)
+        self.bottom_widget_layout.addWidget(self.rate_pv_label,2,1)
+        self.bottom_widget_layout.addWidget(widget_reference_label,4,0)
+        self.bottom_widget_layout.addWidget(self.reference_device,4,1)
+        self.bottom_widget_layout.addWidget(widget_beamline_label,3,0)
+        self.bottom_widget_layout.addWidget(self.beamline_combo_box,3,1)
+        self.bottom_widget_layout.addWidget(widget_run_mode_label,5,0)
+        self.bottom_widget_layout.addWidget(self.radio_widget,5,1)
+        self.bottom_widget_layout.addWidget(self.ironing_single_label,6,0)
+        self.bottom_widget_layout.addWidget(self.target_device_combo_box,6,1)
+        self.bottom_widget_layout.addWidget(self.ironing_area_label,7,0)
+        self.bottom_widget_layout.addWidget(self.target_area_combo_box,7,1)
+        self.bottom_widget_layout.addWidget(self.acquisition_ctrl_button,8,0,1,2)
+        self.bottom_widget_layout.addWidget(self.ironing_ctrl_button,9,0,1,2)
+        self.bottom_widget_layout.addWidget(self.undo_ironing_button,10,0,1,2)
+        self.bottom_widget_layout.addWidget(widget_checkbox_label,11,0)
+        self.bottom_widget_layout.addWidget(self.dropdown_hider,11,1)
 
 
         #### give widgets signals 
@@ -215,7 +223,8 @@ class MainDisplay(Display):
         self.undo_ironing_button.clicked.connect(self.undo_ironing_button_signal)
         #self.ironing_single_target_ctrl_button.clicked.connect(self.ironing_single_signal)
     
-    
+    def setup_rate_pv(self):
+        pass
     
     ### setup the gride for plots
     def setup_plot_grid(self):
