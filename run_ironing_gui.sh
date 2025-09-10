@@ -1,7 +1,8 @@
 #!/bin/bash
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 IRON_SCRIPT="$SCRIPT_DIR/iron_bpms.py"
-
+export IRONING_GUI_LOG_LEVEL="DEBUG"
+export IRONING_GUI_LOG_FILE="$SCRIPT_DIR/ironing_gui.log"
 
 
 NUM="${1:-250}"
