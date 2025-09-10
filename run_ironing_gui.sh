@@ -1,12 +1,18 @@
 #!/bin/bash
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-echo $SCRIPT_DIR
 IRON_SCRIPT="$SCRIPT_DIR/iron_bpms.py"
-echo $IRON_SCRIPT
-echo "Usage: $0 num_samples bsa_mode iron_mode"
-if [ "$#" -eq 4 ]; then
-    echo "Using provided args"
-    pydm -m  "num=$1, mode=$2, iron_mode=$3, iron_sw=$4" $IRON_SCRIPT&
-else
-    pydm -m  "num=50, mode=Inclusion, iron_mode=0" $IRON_SCRIPT&
-fi
+
+
+
+NUM="${1:-250}"
+BSA_MODE="${2:-Inclusion}"
+IRON_MODE="${3:-0}"
+IRON_SW="${4:-0}"
+
+echo "Launching ironing GUI with ironing Parameters:"
+echo "  Number of points $NUM"
+echo "  BSA Mode: $BSA_MODE"
+echo "  Iron Mode: $IRON_MODE"
+echo "  Iron SW Flag: $IRON_SW"
+
+pydm -m  "num=$NUM, mode=$BSA_MODE, iron_mode=$IRON_MODE,iron_sw=$IRON_SW" $IRON_SCRIPT&

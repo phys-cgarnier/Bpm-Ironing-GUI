@@ -24,11 +24,8 @@ class MainDisplay(Display):
         super(MainDisplay, self).__init__(parent=parent, args=args, macros=macros)
         self.default_size = (1425, 1250)
         self.setWindowTitle('BPM Ironing GUI')
-        self.bpm_dir= os.path.dirname(os.path.realpath(__file__))
-        self.bpm_stylesheet= os.path.join(self.bpm_dir, 'bpm_display_stylesheet.qss')
         self.app = QApplication.instance()
         self.app.installEventFilter(self)
-        #self.append_stylesheet(self.bpm_stylesheet)
         #TODO: add macro for dump file with default
         #TODO: add rate rbv? add cancel button?
         #TODO: check if rate before aquiring
@@ -36,7 +33,7 @@ class MainDisplay(Display):
         #TODO: add macro for overriding sw ironing (do not sw iron flag) -- done
         if macros:
             self.class_macros = macros
-            print(macros)
+
             self.macros()
         self.ref_bpm = 'BPMS:GUNB:314'
         self.target_bpm = 'BPMS:GUNB:314'
@@ -50,6 +47,12 @@ class MainDisplay(Display):
         self.ironing_modes = ['All','Area','Single']
         self.run_modes = ['Inclusion','Exclusion','Disable']
         self.rate_pv_name = 'TPG:SYS0:1:DST02:RATE_RBV'
+        self.rate_pv_mappings = {'SC_BSYD':'TPG:SYS0:1:DST02:RATE_RBV',
+                                 'SC_DIAG0':'TPG:SYS0:1:DST01:RATE_RBV',
+                                 'SC_HXR (GUNB-SLTH)':'TPG:SYS0:1:DST03:RATE_RBV',
+                                 'SC_HXR (BSYH-DMPH)':'TPG:SYS0:1:DST03:RATE_RBV',
+                                 'SC_SXR (GUNB-SLTS)':'TPG:SYS0:1:DST04:RATE_RBV',
+                                 'SC_SXR (SLTS-DMPS)':'TPG:SYS0:1:DST04:RATE_RBV'}
         self.bpms_in_line = sc_bpm_common_list+sc_bsyd_list #### this gets updated when a beamline is chosen
         self.bpms_for_bsa = self.bpms_in_line
         self.bold_font = QtGui.QFont()
@@ -473,6 +476,7 @@ class MainDisplay(Display):
         The dictionaries are checked to ensure the data acquired is up the standard previously chosen by Sonya.
         If it isn't is is the device that has failed data is discarded from the list of BPMS to iron.
         '''
+        #TODO: needs a check for rate before doing anything else
         self.acquisition_ctrl_button.setText('Processing... Please wait for plots to load')
         self.acquisition_ctrl_button.setEnabled(False)
         self.acquisition_ctrl_button.blockSignals(True)
@@ -583,6 +587,7 @@ class MainDisplay(Display):
 
 
     def ironing_button_signal(self):
+        #TODO: needs a check for rate before doing anything else
         self.ironing_ctrl_button.setText('Processing... Please wait for plots to load')
         self.ironing_ctrl_button.setEnabled(False)
         self.ironing_ctrl_button.setStyleSheet('background-color:blue')
