@@ -1,6 +1,7 @@
 #!/bin/bash
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-IRON_SCRIPT="$SCRIPT_DIR/iron_bpms.py"
+IRON_SCRIPT="$SCRIPT_DIR/main.py"
+echo "Using script: $IRON_SCRIPT"
 export IRONING_GUI_LOG_LEVEL="DEBUG"
 export IRONING_GUI_LOG_FILE="$SCRIPT_DIR/ironing_gui.log"
 

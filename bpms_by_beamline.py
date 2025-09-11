@@ -1,4 +1,4 @@
-sc_bpm_common_list =[
+SC_BPM_COMMON_LIST =[
 'BPMS:GUNB:314',
 'TORO:GUNB:360',
 'BPMS:GUNB:925',
@@ -121,7 +121,7 @@ sc_bpm_common_list =[
 'BPMS:BPN28:400',
 'BPMS:SPD:135']
 
-sc_bsyd_list = [
+SC_BSYD_LIST = [
 'BPMS:SPD:255',
 'BPMS:SPD:340',
 'BPMS:SPD:420', 
@@ -133,7 +133,7 @@ sc_bsyd_list = [
 'BPMS:SLTD:895'
 ]
 
-sc_diag0= [
+SC_DIAG0_LIST = [
 'BPMS:DIAG0:210',
 'BPMS:DIAG0:190',
 'BPMS:DIAG0:230',
@@ -147,7 +147,7 @@ sc_diag0= [
 'FARC:DIAG0:530'
 ]
 
-sc_sxr_U_list= [
+SC_SXR_U_LIST= [
 'BPMS:SPD:255',
 'BPMS:SPD:340',
 'BPMS:SPD:420',
@@ -165,7 +165,7 @@ sc_sxr_U_list= [
 'BPMS:SLTS:460'
 ]
 
-sc_sxr_D_list = [
+SC_SXR_D_LIST = [
 'BPMS:SLTS:460',
 'BPMS:SPS:840',
 'BPMS:BSYS:865',
@@ -228,7 +228,7 @@ sc_sxr_D_list = [
 'BPMS:DMPS:502',
 'BPMS:DMPS:693']
 
-sc_hxr_U_list = [
+SC_HXR_U_LIST = [
 'BPMS:SPH:322',
 'BPMS:SPH:345',
 'TORO:SPH:365',
@@ -245,7 +245,7 @@ sc_hxr_U_list = [
 'BPMS:SLTH:220'
 ]
 
-sc_hxr_D_list= [
+SC_HXR_D_LIST = [
 'BPMS:BSYH:445',
 'BPMS:BSYH:465',
 'BPMS:BSYH:640',
