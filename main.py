@@ -66,6 +66,7 @@ class BpmOnyx(Display):
 
 
     #### main code for setting up ui
+    #
     def setup_header(self):
         '''
         Sets up the header label of the UI.
@@ -73,7 +74,7 @@ class BpmOnyx(Display):
         '''
         header_label = QLabel('BPM IRONING')
         return header_label
-    
+    #
     def setup_pen(self):
         '''
         Sets up the pen styles used by the UI.
@@ -173,7 +174,6 @@ class BpmOnyx(Display):
 
         self.reference_device = QComboBox()
         self.setup_ref_combo_box()
-        #self.reference_device.setText(self.ref_bpm)
 
         self.ironing_single_label = QLabel('Select BPM')
         self.target_device_combo_box = QComboBox()
@@ -241,16 +241,6 @@ class BpmOnyx(Display):
         self.undo_ironing_button.clicked.connect(self.undo_ironing_button_signal)
         #self.ironing_single_target_ctrl_button.clicked.connect(self.ironing_single_signal)
     
-    def set_rate_pv(self):
-        '''
-        Method for setting the rate PV based on the destination mask
-        Is invoked when the beamline combo box is changed.
-        '''
-        self.rate_pv_name =self.rate_pv_mappings[self.dest_mask[0]]
-        self.rate_pv_label.channel = self.rate_pv_name
-        LOGGER.info(f'Setting Rate PV: {self.rate_pv_name}')
-
-
     ### setup the grid for plots
     def setup_plot_grid(self):  
         self.plot_grid = PlotGrid()
@@ -285,9 +275,19 @@ class BpmOnyx(Display):
         self.setup_ref_combo_box()
         self.setup_target_device_combo_box()
         self.setup_target_area_combo_box()
-        LOGGER.info(f'Setting Reference BPM: {self.ref_bpm}')
+
 
     #### setup helper functions
+    #
+    def set_rate_pv(self):
+        '''
+        Method for setting the rate PV based on the destination mask
+        Is invoked when the beamline combo box is changed.
+        '''
+        self.rate_pv_name =self.rate_pv_mappings[self.dest_mask[0]]
+        self.rate_pv_label.channel = self.rate_pv_name
+        LOGGER.info(f'Setting Rate PV: {self.rate_pv_name}')
+
     def setup_default_ironing_mode(self):
         self.radio_buttons[self.default_iron_mode].setChecked(True)
         self.ironing_mode_toggle()
@@ -351,7 +351,8 @@ class BpmOnyx(Display):
     #
     def set_ref_bpm(self):
         '''
-        Gets the current text of the reference device combo box and sets it as the ref bpm
+        Gets the current text of the reference device combo box and sets it as the ref bpm.
+        Invoked whether the beamline or reference device combo box is changed.
         Updates the bpms passed to the BSABufferClass.
         '''
         LOGGER.info(f'Setting Reference BPM: {self.reference_device.currentText()}')
@@ -651,17 +652,21 @@ class BpmOnyx(Display):
 
     def undo_ironing_button_signal(self):
             try:
-                if self.previous_ironing_mode == 0 or self.previous_ironing_mode == 1:          
+                if self.previous_ironing_mode == 0 or self.previous_ironing_mode == 1:
+                    LOGGER.info('Undoing FW Ironing for all bpms')
                     self.ironing_tool.iron_devices(self.previous_fw_qscls)
                     if self.sw_flag == True:
+                        LOGGER.info('Undoing SW Ironing for all bpms')
                         self.ironing_tool.iron_devices(self.previous_sw_qscls)
                     else:
-                        LOGGER.warning('SW Ironing is in override mode, will not iron software values for all bpms')
+                        LOGGER.warning('SW Ironing is in override mode, will not undo software ironing for bpms')
                 elif self.previous_ironing_mode == 2:
+                    LOGGER.info(f'Undoing FW Ironing for {self.previous_target_bpm}')
                     self.ironing_tool.iron_single_device(self.previous_fw_qscls,self.previous_target_bpm,':FW:QSCL')
                     if self.sw_flag == True:
+                        LOGGER.info(f'Undoing SW Ironing for {self.previous_target_bpm}')
                         self.ironing_tool.iron_single_device(self.previous_sw_qscls, self.previous_target_bpm, ':QSCL')
                     else:
-                        LOGGER.warning('SW Ironing is in override mode, will not iron software values for all bpms')
+                        LOGGER.warning(f'SW Ironing is in override mode, will not undo software ironing for {self.previous_target_bpm}')
             except Exception as e:
                 LOGGER.error(f'An error {e} occurred')
