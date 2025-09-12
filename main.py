@@ -63,8 +63,6 @@ class BpmOnyx(Display):
         self.setup_plot_grid() 
         self.setup_control_grid()
 
-
-
     #### main code for setting up ui
     #
     def setup_header(self):
@@ -87,7 +85,7 @@ class BpmOnyx(Display):
         self.underlined_font.setUnderline(True)
         self.signal_processing_enabled = True
         self.prepped_desk_mask = None
-    
+    #
     def setup_ui(self):
         '''
         Sets up the main body widgets and scroll area of the UI
@@ -292,11 +290,14 @@ class BpmOnyx(Display):
         self.radio_buttons[self.default_iron_mode].setChecked(True)
         self.ironing_mode_toggle()
 
+    #
     def setup_target_device_combo_box(self):
         '''
         Clears the target device combo box and
         repopulates it with the acceptable target bpms
         from bpms in line (omits toroids etc).
+        Is invoked when the destination mask (beamline combo box)
+        is changed, or when the ironing mode is toggled to Single.
         '''
         self.target_device_combo_box.clear()
         for device in self.bpms_in_line:
@@ -501,7 +502,18 @@ class BpmOnyx(Display):
         The dictionaries are checked to ensure the data acquired is up the standard previously chosen by Sonya.
         If it isn't is is the device that has failed data is discarded from the list of BPMS to iron.
         '''
-        #TODO: needs a check for rate before doing anything else
+        rate = epics.PV(self.rate_pv_name).get()
+        LOGGER.info(f'Attempting to prep assests with beam rate {rate}Hz')
+        if epics.PV(self.rate_pv_name).get() < 1: 
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText(f'Beamline rate is below 1Hz. Current rate is {rate} Hz. \n'
+                        'Please try again when rate is above 1 Hz.')
+            msg.setWindowTitle('Warning')
+            msg.setStandardButtons(QMessageBox.Ok)
+            retval = msg.exec_()
+            return
+        
         self.acquisition_ctrl_button.setText('Processing... Please wait for plots to load')
         self.acquisition_ctrl_button.setEnabled(False)
         self.acquisition_ctrl_button.blockSignals(True)
@@ -532,52 +544,62 @@ class BpmOnyx(Display):
         self.buffer_num_rdbk.repaint()
         self.bsa_buffer.start_buffer()
         self.bpm_tmits, self.bpm_ave_tmits, self.pulse_id_data = self.bsa_buffer.get_tmit_buffers()
-        #pprint.pprint(self.bpm_tmits)
-        #pprint.pprint(self.bpm_ave_tmits)
-        #pprint.pprint(self.pulse_id_data)
         self.bsa_buffer.release_buffer()
         
-        ######
-        #setup buffer should really only be setting up the buffer
-        #prep all assets should handle all cleaning, and the cleaning should be done by one tool, not two.
-        # need to combine cleaning from BPMIroningTool and BsaNordComparison into one tool
-        # after combining and ensure it works. 
-        # have the buffer acquisition happen on another thread and lock the button. 
-        # the other thread will do the work and call back to the button to repaint
-
-    
     def prep_all_assets(self):
         '''
-        Sends pulse_id_data and bpm_tmit to IroningCleaningTool and returns dictionaries that are cleaned of all failures.
+        Sends Pulse ID Data and Bpm Tmits to IroningCleaningTool and
+        returns dictionaries that are cleaned of all failures.
         These attributes are used in the dropdown menus.
         '''
-        self.cleaning_tool = IroningCleaningTool(self.pulse_id_data,self.bpm_tmits,self.bpm_ave_tmits,self.num)
+        self.cleaning_tool = IroningCleaningTool(
+            self.pulse_id_data,
+            self.bpm_tmits,
+            self.bpm_ave_tmits,
+            self.num
+            )
         self.cleaning_tool.clean_signals()
-        #self.wrong_size_nord_dictionary = self.cleaning_tool.return_valid_dictionaries()
-        ( self.wrong_size_nord_dictionary, self.cleaned_pid_dict, self.cleaned_tmit_dict, self.cleaned_ave_tmits_dict,
-          self.bpm_pid_counts_by_meas, self.bpm_pid_devs_by_meas, self.total_failures ) = self.cleaning_tool.return_all_dictionaries()
+
+        (self.wrong_size_nord_dictionary,
+        self.cleaned_pid_dict,
+        self.cleaned_tmit_dict,
+        self.cleaned_ave_tmits_dict,
+        self.bpm_pid_counts_by_meas,
+        self.bpm_pid_devs_by_meas,
+        self.total_failures ) = self.cleaning_tool.return_all_dictionaries()
+
         LOGGER.warning(f'Printing total failures: {self.total_failures}')
-        #pprint.pprint(self.total_failures)
-        #pprint.pprint(self.wrong_size_nord_dictionary)
-        #pprint.pprint(self.cleaned_pid_dict)
-        #pprint.pprint(self.cleaned_tmit_dict)
-        #pprint.pprint(self.bpm_pid_counts_by_meas)
-        #pprint.pprint(self.bpm_pid_devs_by_meas)
 
         self.create_scl_pv_dicts(self.cleaned_tmit_dict)
 
         self.ironing_tool = BpmIroningTool()
 
-        self.tmits_ratiod_to_ref = self.ironing_tool.create_tmits_ratiod_dict(self.ref_bpm,self.cleaned_ave_tmits_dict)
-        pprint.pprint(self.tmits_ratiod_to_ref)
-        self.plot_grid.update_plots( self.cleaned_tmit_dict,self.cleaned_ave_tmits_dict,
-                                     self.tmits_ratiod_to_ref,self.z_pos_pvs,self.ref_bpm )
-        self.put_fwscl_vals = self.ironing_tool.create_put_scl_vals_dict(self.tmits_ratiod_to_ref,self.bpm_fw_scl_pvs,':FW:QSCL',self.ref_bpm)
-        self.put_swscl_vals = self.ironing_tool.create_put_scl_vals_dict(self.tmits_ratiod_to_ref,self.bpm_sw_scl_pvs,':QSCL',self.ref_bpm)
+        self.tmits_ratiod_to_ref = self.ironing_tool.create_tmits_ratiod_dict(
+            self.ref_bpm,
+            self.cleaned_ave_tmits_dict
+            )
+        
+        self.plot_grid.update_plots(
+            self.cleaned_tmit_dict,
+            self.cleaned_ave_tmits_dict,
+            self.tmits_ratiod_to_ref,
+            self.z_pos_pvs,
+            self.ref_bpm
+        )
+        self.put_fwscl_vals = self.ironing_tool.create_put_scl_vals_dict(
+            self.tmits_ratiod_to_ref,
+            self.bpm_fw_scl_pvs,
+            ':FW:QSCL',
+            self.ref_bpm
+            )
+        self.put_swscl_vals = self.ironing_tool.create_put_scl_vals_dict(
+            self.tmits_ratiod_to_ref,
+            self.bpm_sw_scl_pvs,
+            ':QSCL',
+            self.ref_bpm
+    )
         pprint.pprint(self.bpm_fw_scl_pvs)
         pprint.pprint(self.put_fwscl_vals)
-        #pprint.pprint(self.put_swscl_vals)
-
 
     def create_scl_pv_dicts(self,tmit_dict:Dict[str,Any]):
         # set up class attributes for plotting
@@ -609,7 +631,6 @@ class BpmOnyx(Display):
         # pprint.pprint(self.z_pos_pvs)
         # pprint.pprint(self.bpm_fw_scl_pvs)
         # pprint.pprint(self.bpm_sw_scl_pvs)
-
 
     def ironing_button_signal(self):
         #TODO: needs a check for rate before doing anything else
