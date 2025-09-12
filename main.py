@@ -49,6 +49,7 @@ class BpmOnyx(Display):
         self.run_modes = RUN_MODE_LABELS
         self.rate_pv_mappings = RATE_PV_MAPPINGS
         #TODO: check if rate before aquiring
+        
         self.rate_pv_name = RATE_PV_MAPPINGS[DEST_MASK[0]]
         self.bpms_in_line = SC_BPM_COMMON_LIST + SC_BSYD_LIST #### this gets updated when a beamline is chosen
         self.bpms_for_bsa = self.bpms_in_line
@@ -63,7 +64,21 @@ class BpmOnyx(Display):
         self.setup_control_grid()
 
 
+
+    #### main code for setting up ui
+    def setup_header(self):
+        '''
+        Sets up the header label of the UI.
+        Is invoked by the class __init__ constructor method.
+        '''
+        header_label = QLabel('BPM IRONING')
+        return header_label
+    
     def setup_pen(self):
+        '''
+        Sets up the pen styles used by the UI.
+        Is invoked by the class __init__ constructor method.
+        '''
         self.bold_font = QtGui.QFont()
         self.bold_font.setBold(True)
         self.underlined_font = QtGui.QFont()
@@ -71,15 +86,11 @@ class BpmOnyx(Display):
         self.underlined_font.setUnderline(True)
         self.signal_processing_enabled = True
         self.prepped_desk_mask = None
-
-    #### main code for setting up ui
-    def setup_header(self):
-        header_label = QLabel('BPM IRONING')
-        return header_label
     
     def setup_ui(self):
         '''
         Sets up the main body widgets and scroll area of the UI
+        Is invoked by the class __init__ constructor method.
         '''
         LOGGER.info('Setting up UI')
         self.main_layout = QVBoxLayout()
@@ -106,6 +117,7 @@ class BpmOnyx(Display):
         Populates the side widget with a dropdown menu and a table widget
         that displays various information based on the dropdown selection.
         '''
+        #TODO: Use keys from global_config.DATA_TABLE_HANDLERS to populate dropdown menu
         self.side_widget_layout = QVBoxLayout()
         self.side_widget.setLayout(self.side_widget_layout)
         self.dropdown = QComboBox()
@@ -229,10 +241,17 @@ class BpmOnyx(Display):
         self.undo_ironing_button.clicked.connect(self.undo_ironing_button_signal)
         #self.ironing_single_target_ctrl_button.clicked.connect(self.ironing_single_signal)
     
-    def setup_rate_pv(self):
-        pass
-    
-    ### setup the gride for plots
+    def set_rate_pv(self):
+        '''
+        Method for setting the rate PV based on the destination mask
+        Is invoked when the beamline combo box is changed.
+        '''
+        self.rate_pv_name =self.rate_pv_mappings[self.dest_mask[0]]
+        self.rate_pv_label.channel = self.rate_pv_name
+        LOGGER.info(f'Setting Rate PV: {self.rate_pv_name}')
+
+
+    ### setup the grid for plots
     def setup_plot_grid(self):  
         self.plot_grid = PlotGrid()
         self.main_widget.setLayout(self.plot_grid)
@@ -241,7 +260,7 @@ class BpmOnyx(Display):
         '''
         Grabs the index of the beamline combo box determines the destination mask.
         Given the destination mask updates list of bpms in line based on the beamline chosen.
-        Invokes methods for setting up the ref bpm, target bpm and target area combo boxes.
+        Invokes methods for setting up the, rate pv rbv, ref bpm, target bpm and target area combo boxes.
         '''
         index = self.beamline_combo_box.currentIndex()
         dest_mask = self.beamline_combo_box.itemText(index)
@@ -262,6 +281,7 @@ class BpmOnyx(Display):
 
         self.ref_bpm = self.bpms_in_line[0]
         #self.target_bpm = self.bpms_in_line[-1]
+        self.set_rate_pv()
         self.setup_ref_combo_box()
         self.setup_target_device_combo_box()
         self.setup_target_area_combo_box()
