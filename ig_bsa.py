@@ -3,12 +3,12 @@ from edef import BSABuffer
 from  datetime import datetime
 import time
 import numpy as np
-
+from global_config import LOGGER
 class BpmBSABuffer():
     def __init__(self,num_measurements:int,dest_masks:str,dest_mode:str,bpm_list:list,*args,**kwargs):
         self.bpm_bsa_buffer = BSABuffer('Chris BPM Testing', user= 'cgarnier')
         self.buffer_num = self.bpm_bsa_buffer.number
-        print('Buffer # : ' ,self.buffer_num)
+        LOGGER.info('Buffer # : %s', self.buffer_num)
         self.bpm_bsa_buffer.destination_masks = dest_masks
         self.bpm_bsa_buffer.n_measurements = num_measurements
         # maybe change to self.bsa_destmode_pv and do something with self.put
@@ -21,10 +21,11 @@ class BpmBSABuffer():
 
     def start_buffer(self):
         self.bpm_bsa_buffer.start()
-        print('waiting for buffer  ', datetime.now())
+        LOGGER.info('waiting for buffer  %s', datetime.now())
         while epics.caget(f'BSA:SYS0:{self.buffer_num}:HST_READY') == 0:
-            time.sleep(.1)
-        print('end waiting for buffer ', datetime.now())
+            LOGGER.info('buffer not ready yet %s', datetime.now())
+            time.sleep(.5)
+        LOGGER.info('end waiting for buffer %s', datetime.now())
 
     def release_buffer(self):
         self.bpm_bsa_buffer.release()
@@ -52,10 +53,10 @@ class BpmBSABuffer():
                 bpm_tmit_pvs.append(bpm + ':CHRG')
             else:
                 reason = "Unknown prefix (not BPMS or TORO)"
-                print(f"[WARNING] {bpm}: {reason}")
+                LOGGER.warning('%s: %s', bpm, reason)
                 self.failed_devices[bpm] = reason
 
-        print(f"[INFO] Attempting caget_many on {len(bpm_tmit_pvs)} PVs...")
+        LOGGER.info('Attempting caget_many on %d PVs...', len(bpm_tmit_pvs))
         try:
             got_list = epics.caget_many(bpm_tmit_pvs)
             if got_list is None:
@@ -74,14 +75,14 @@ class BpmBSABuffer():
                 self.active_bpm_tmit_pvs.append(pv)
             else:
                 reason = "Initial caget returned None"
-                print(f"[WARNING] {pv}: {reason}")
+                LOGGER.warning('%s: %s', pv, reason)
                 self.failed_devices[pv] = reason
 
         if not self.active_bpm_tmit_pvs:
-            print("[ERROR] No active BPM TMIT PVs found.")
+            LOGGER.error("No active BPM TMIT PVs found.")
             return {}, {}, {}
 
-        print(f"[INFO] {len(self.active_bpm_tmit_pvs)} active PVs found. Fetching BSA data...")
+        LOGGER.info('%d active PVs found. Fetching BSA data...', len(self.active_bpm_tmit_pvs))
 
         # Step 3: Get buffer data
         for pv in self.active_bpm_tmit_pvs:
@@ -89,9 +90,9 @@ class BpmBSABuffer():
                 tmit_buffer = self.bpm_bsa_buffer.get_data_buffer(pv)
                 epics_tmit_buffer = epics.caget(f"{pv}HST{self.buffer_num}",timeout=1.5)
                 if tmit_buffer is None or len(tmit_buffer) == 0:
-                    print(f"{pv} with tmit_buffer {tmit_buffer} and epics buffer {epics_tmit_buffer}")
+                    LOGGER.info(f"{pv} with tmit_buffer {tmit_buffer} and epics buffer {epics_tmit_buffer}")
                     reason = "Empty or None tmit buffer"
-                    print(f"[WARNING] {pv}: {reason}")
+                    LOGGER.warning(f"{pv}: {reason}")
                     self.failed_devices[pv] = reason
                     continue
 
@@ -109,7 +110,7 @@ class BpmBSABuffer():
 
                     if len(converted) == 0:
                         reason = "All CHRG values were None or failed conversion"
-                        print(f"[WARNING] {pv}: {reason}")
+                        LOGGER.warning(f" {pv}: {reason}")
                         self.failed_devices[pv] = reason
                         continue
 
@@ -130,10 +131,10 @@ class BpmBSABuffer():
             except Exception as e:
                 self.failed_devices[pv] = f"Exception during data buffer fetch: {e}"
 
-        print(f"[INFO] Done at {datetime.now()}")
+        LOGGER.info('Done at %s', datetime.now())
         if self.failed_devices:
-            print("[SUMMARY] Failed Devices:")
+            LOGGER.warning("[SUMMARY] Failed Devices:")
             for k, v in self.failed_devices.items():
-                print(f"  - {k}: {v}")
+                LOGGER.warning("  - %s: %s", k, v)
 
         return self.bpm_tmit_dictionary, self.bpm_tmit_averages_dictionary, self.pulse_id_data

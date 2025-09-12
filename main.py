@@ -19,8 +19,7 @@ from ig_plot_grid import PlotGrid
 import pprint
 from typing import Dict,List,Any
 from global_config import(
-logger, IRONING_MODE,
-RUN_MODE, RATE_PV_MAPPINGS,
+LOGGER, RATE_PV_MAPPINGS,
 BEAMLINES, IRONING_MODE_LABELS,
 RUN_MODE_LABELS, DEST_MASK,
 REFERENCE_BPM, TARGET_BPM, TARGET_AREA)
@@ -37,11 +36,6 @@ class BpmOnyx(Display):
         self.setWindowTitle('BPM Ironing GUI')
         app = QApplication.instance()
         app.installEventFilter(self)
-        #TODO: add macro for dump file with default
-        #TODO: add rate rbv? add cancel button?
-        #TODO: check if rate before aquiring
-        # i think this means I need to create a main function that does logging.
-        #TODO: add macro for overriding sw ironing (do not sw iron flag) -- done
         if macros:
             self.class_macros = macros
             self.macros()
@@ -54,6 +48,7 @@ class BpmOnyx(Display):
         self.ironing_modes = IRONING_MODE_LABELS
         self.run_modes = RUN_MODE_LABELS
         self.rate_pv_mappings = RATE_PV_MAPPINGS
+        #TODO: check if rate before aquiring
         self.rate_pv_name = RATE_PV_MAPPINGS[DEST_MASK[0]]
         self.bpms_in_line = SC_BPM_COMMON_LIST + SC_BSYD_LIST #### this gets updated when a beamline is chosen
         self.bpms_for_bsa = self.bpms_in_line
@@ -61,9 +56,9 @@ class BpmOnyx(Display):
         self.ironing_mode = self.default_iron_mode
         self.sw_flag = bool(self.class_macros.get('iron_sw', True))
         self.setup_pen()
-        self.setup_ui() #fine before rework
-        self.resize(*self.default_size) #fine before rework
-        self.setup_dropdown_info() # commented out signal to show new table
+        self.setup_ui()
+        self.resize(*self.default_size)
+        self.setup_dropdown_info()
         self.setup_plot_grid() 
         self.setup_control_grid()
 
@@ -83,6 +78,10 @@ class BpmOnyx(Display):
         return header_label
     
     def setup_ui(self):
+        '''
+        Sets up the main body widgets and scroll area of the UI
+        '''
+        LOGGER.info('Setting up UI')
         self.main_layout = QVBoxLayout()
         self.header_label = self.setup_header()
         self.main_layout.addWidget(self.header_label)
@@ -94,23 +93,19 @@ class BpmOnyx(Display):
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setWidget(self.scroll_content)
         self.main_widget = QWidget()
-        #self.main_widget.setStyleSheet("background-color: white;")
         self.side_widget = QWidget()
-        #self.side_widget.setStyleSheet("background-color: white;")
         self.bottom_widget = QWidget()
-        #self.bottom_widget.setStyleSheet("background-color: white;")
         self.scroll_layout.addWidget(self.main_widget,0,0,2,2)
         self.scroll_layout.addWidget(self.side_widget,2,1)
         self.scroll_layout.addWidget(self.bottom_widget,2,0)
-        #self.scroll_layout.setRowStretch(0,2)
-        #self.scroll_layout.setRowStretch(1,2)
-        #self.scroll_layout.setColumnStretch(0,2)
-        #self.scroll_layout.setColumnStretch(1,1)
         self.main_layout.addWidget(self.scroll_area)
         self.setLayout(self.main_layout)
 
     def setup_dropdown_info(self):
-
+        '''
+        Populates the side widget with a dropdown menu and a table widget
+        that displays various information based on the dropdown selection.
+        '''
         self.side_widget_layout = QVBoxLayout()
         self.side_widget.setLayout(self.side_widget_layout)
         self.dropdown = QComboBox()
@@ -130,7 +125,7 @@ class BpmOnyx(Display):
         self.data_table = QTableWidget()
         self.data_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)      
         self.side_widget_layout.addWidget(self.data_table)
-        # self.side_widget.installEventFilter(self)
+
     def setup_control_grid(self):
         ## instantiate and set layout
         self.bottom_widget_layout = QGridLayout()
@@ -238,8 +233,7 @@ class BpmOnyx(Display):
         pass
     
     ### setup the gride for plots
-    def setup_plot_grid(self):
-        temp_num = int(self.class_macros['num'])
+    def setup_plot_grid(self):  
         self.plot_grid = PlotGrid()
         self.main_widget.setLayout(self.plot_grid)
 
@@ -252,7 +246,7 @@ class BpmOnyx(Display):
         index = self.beamline_combo_box.currentIndex()
         dest_mask = self.beamline_combo_box.itemText(index)
         self.dest_mask = [dest_mask.split(' ',1)[0]]
-        print('Setting Destination Mask ', self.dest_mask)
+        LOGGER.info(f'Setting Destination Mask: {self.dest_mask}')
         if dest_mask == BEAMLINES[0]: #SC_BSYD
             self.bpms_in_line = SC_BPM_COMMON_LIST + SC_BSYD_LIST
         elif dest_mask == BEAMLINES[1]: #SC_DIAG0
@@ -271,7 +265,7 @@ class BpmOnyx(Display):
         self.setup_ref_combo_box()
         self.setup_target_device_combo_box()
         self.setup_target_area_combo_box()
-        print(self.ref_bpm)
+        LOGGER.info(f'Setting Reference BPM: {self.ref_bpm}')
 
     #### setup helper functions
     def setup_default_ironing_mode(self):
@@ -279,11 +273,13 @@ class BpmOnyx(Display):
         self.ironing_mode_toggle()
 
     def setup_target_device_combo_box(self):
+        '''
+        Clears the target device combo box and
+        repopulates it with the acceptable target bpms
+        from bpms in line (omits toroids etc).
+        '''
         self.target_device_combo_box.clear()
-        temp_list = self.bpms_in_line
-        for device in temp_list:
-            #devices look like 'BPMS:GUNB:314' or 'TORO:COL1:125'
-            #dev_type looks like 'BPMS' or 'TORO'
+        for device in self.bpms_in_line:
             dev_type = device.split(':',2)[0]
             if dev_type == 'BPMS':
                 self.target_device_combo_box.addItem(device)
@@ -332,16 +328,16 @@ class BpmOnyx(Display):
             self.ironing_area_label.hide()
             self.target_area_combo_box.hide()  
             self.bpms_for_bsa = self.update_bpms_for_buffer(self.ironing_mode,self.ref_bpm,self.target_bpm,self.target_area)  
-
+    #
     def set_ref_bpm(self):
         '''
         Gets the current text of the reference device combo box and sets it as the ref bpm
         Updates the bpms passed to the BSABufferClass.
         '''
-        print('Setting Reference BPM ', self.reference_device.currentText())
+        LOGGER.info(f'Setting Reference BPM: {self.reference_device.currentText()}')
         self.ref_bpm = self.reference_device.currentText()
         self.bpms_for_bsa = self.update_bpms_for_buffer(self.ironing_mode,self.ref_bpm,self.target_bpm,self.target_area)
-
+    #
     def setup_ref_combo_box(self):
         '''
         Clears the reference device combo box and 
@@ -388,18 +384,14 @@ class BpmOnyx(Display):
         #print('list of devices to use!!: ',  bpms)
         return bpms   
     
-    ##misc
     def set_side_widget_vis(self):
+        '''
+         Sets the side widget visibility invoked by checkbox
+        '''
         if self.side_widget.isHidden():
             self.side_widget.show()
         else:
             self.side_widget.hide()
-    def show_dialog(self):
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle('Ironing Dialog Box')
-        msg_box.setText('Warning!!\nThe device entered is not valid,\nplease select a valid device.')
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        result = msg_box.exec()
     
     ##### loading functions for side widget dropdown box
     def load_data_table_signal(self,index):
@@ -437,11 +429,11 @@ class BpmOnyx(Display):
                 self.load_data_table_from_dictionary(self.put_swscl_vals) 
         if selected_item == 'Total Failures':
             if hasattr(self,'total_failures'):
-                # This does not load correctly for total failures.... despite total failures being a real dict.
-                # recommend doeing something else
-                self.load_data_table_from_nested_dictionary(self.total_failures) 
+                #TODO: This does not load correctly for total failures.... despite total failures being a real dict.
+                self.load_data_table_from_nested_dictionary(self.total_failures)
+
     def load_data_table_from_dictionary(self,pv_dict):
-        ### will need to fix this to make it quicker but for now just do the same thing with QLabels
+        #TODO: will need to fix this to make it quicker but for now just do the same thing with QLabels
         self.data_table.setRowCount(len(pv_dict))
         self.data_table.setColumnCount(2)
         for row, (key,value) in enumerate(pv_dict.items()):
@@ -452,9 +444,8 @@ class BpmOnyx(Display):
             self.data_table.setItem(row,0,key_item)
             self.data_table.setItem(row,1,value_item)
         self.data_table.resizeColumnsToContents()
-    def load_data_table_from_nested_dictionary(self,nested_dict):
-        #print(nested_dict)
-        
+
+    def load_data_table_from_nested_dictionary(self,nested_dict):        
         self.data_table.setRowCount(len(nested_dict))
         self.data_table.setColumnCount(10)
         items = list(nested_dict.items())
@@ -514,7 +505,7 @@ class BpmOnyx(Display):
         self.bpm_tmits is 
         '''
         self.num = int(self.class_macros['num'])
-        print('using: ', self.bpms_for_bsa)
+        LOGGER.info(f'Using: {self.bpms_for_bsa}')
         self.bsa_buffer = BpmBSABuffer( self.num,self.dest_mask,self.class_macros['mode'],self.bpms_for_bsa)
         self.buffer_num_rdbk.setText(str(self.bsa_buffer.buffer_num))
         self.buffer_num_rdbk.repaint()
@@ -544,7 +535,7 @@ class BpmOnyx(Display):
         #self.wrong_size_nord_dictionary = self.cleaning_tool.return_valid_dictionaries()
         ( self.wrong_size_nord_dictionary, self.cleaned_pid_dict, self.cleaned_tmit_dict, self.cleaned_ave_tmits_dict,
           self.bpm_pid_counts_by_meas, self.bpm_pid_devs_by_meas, self.total_failures ) = self.cleaning_tool.return_all_dictionaries()
-        print('printing total failures')
+        LOGGER.warning(f'Printing total failures: {self.total_failures}')
         #pprint.pprint(self.total_failures)
         #pprint.pprint(self.wrong_size_nord_dictionary)
         #pprint.pprint(self.cleaned_pid_dict)
@@ -628,15 +619,15 @@ class BpmOnyx(Display):
                 if self.sw_flag == True:
                     self.ironing_tool.iron_devices(self.put_swscl_vals)
                 else:
-                    print('SW Ironing is in override mode, will not iron software values for all bpms')
+                    LOGGER.warning('SW Ironing is in override mode, will not iron software values for all bpms')
             elif mode == 2:
                 self.ironing_tool.iron_single_device(self.put_fwscl_vals,self.target_bpm,':FW:QSCL')
                 if self.sw_flag == True:
                     self.ironing_tool.iron_single_device(self.put_swscl_vals, self.target_bpm, ':QSCL')
                 else:
-                    print('SW Ironing is in override mode, will not iron software values for all bpms')
+                    LOGGER.warning('SW Ironing is in override mode, will not iron software values for all bpms')
         except Exception as e:
-            print(f'An error {e} occurred')
+            LOGGER.error(f'An error {e} occurred')
 
     def undo_ironing_button_signal(self):
             try:
@@ -645,12 +636,12 @@ class BpmOnyx(Display):
                     if self.sw_flag == True:
                         self.ironing_tool.iron_devices(self.previous_sw_qscls)
                     else:
-                        print('SW Ironing is in override mode, will not iron software values for all bpms')
+                        LOGGER.warning('SW Ironing is in override mode, will not iron software values for all bpms')
                 elif self.previous_ironing_mode == 2:
                     self.ironing_tool.iron_single_device(self.previous_fw_qscls,self.previous_target_bpm,':FW:QSCL')
                     if self.sw_flag == True:
                         self.ironing_tool.iron_single_device(self.previous_sw_qscls, self.previous_target_bpm, ':QSCL')
                     else:
-                        print('SW Ironing is in override mode, will not iron software values for all bpms')
+                        LOGGER.warning('SW Ironing is in override mode, will not iron software values for all bpms')
             except Exception as e:
-                print(f'An error {e} occurred')
+                LOGGER.error(f'An error {e} occurred')

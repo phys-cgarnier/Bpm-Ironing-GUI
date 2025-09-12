@@ -2,25 +2,12 @@
 import os
 from pathlib import Path
 import logging
-from typing import Optional, List, Dict, Any
-from enum import Enum, IntEnum
+
 
 log_level = os.getenv("IRONING_GUI_LOG_LEVEL").upper()
 log_file = os.getenv("IRONING_GUI_LOG_FILE")
-logging.basicConfig(filename=log_file, level=log_level)
-logger = logging.getLogger("BpmOnyx")
-
-# ENUMS FOR IRONING MODES AND RUN MODES
-class IRONING_MODE(IntEnum):
-    ALL = 0
-    AREA = 1
-    SINGLE = 2
-
-class RUN_MODE(Enum):
-    INCLUSION = "Inclusion"
-    EXCLUSION = "Exclusion"
-    DISABLE = "Disable"
-# ENUMS FOR IRONING MODES AND RUN MODES
+logging.basicConfig( level=log_level)
+LOGGER = logging.getLogger("")
 
 #GLOBAL CONSTANTS
 RATE_PV_MAPPINGS = {
@@ -37,9 +24,23 @@ BEAMLINES = [
     'SC_SXR (GUNB-SLTS)', 'SC_SXR (SLTS-DMPS)'
 ]
 IRONING_MODE_LABELS = ['All', 'Area', 'Single']
-RUN_MODE_LABELS = [m.value for m in (RUN_MODE.INCLUSION, RUN_MODE.EXCLUSION, RUN_MODE.DISABLE)]
+RUN_MODE_LABELS = ["Inclusion", "Exclusion", "Disable"]
 
 DEST_MASK = ['SC_BSYD']
 REFERENCE_BPM = 'BPMS:GUNB:314'
 TARGET_BPM = 'BPMS:GUNB:314'
 TARGET_AREA = 'GUNB'
+
+DATA_TABLE_HANDLERS  = {
+        'Average TMIT From BSA': ('bsa_buffer.bpm_tmit_averages_dictionary', 'dict'),
+        'Wrong Size Nord': ('wrong_size_nord_dictionary', 'dict'),
+        'Counts of BPMs per Unique PID': ('bpm_pid_counts_by_meas', 'nested'),
+        'Dev Names of PIDs by Measurement': ('bpm_pid_devs_by_meas', 'nested'),
+        'Cleaned TMIT Averages': ('bpm_ave_tmits', 'dict'),
+        'Cleaned FW QSCLS': ('bpm_fw_scl_pvs', 'dict'),
+        'Cleaned SW QSCLS': ('bpm_sw_scl_pvs', 'dict'),
+        'Cleaned TMIT Ratios': ('tmits_ratiod_to_ref', 'dict'),
+        'Value of FW QSCL if Ironed': ('put_fwscl_vals', 'dict'),
+        'Value of SW QSCL if Ironed': ('put_swscl_vals', 'dict'),
+        'Total Failures': ('total_failures', 'nested'),
+    }

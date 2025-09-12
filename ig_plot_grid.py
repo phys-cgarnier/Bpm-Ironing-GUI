@@ -2,6 +2,7 @@ import pyqtgraph as pg
 from qtpy import QtCore
 from qtpy.QtWidgets import QGridLayout
 from typing import Dict, List, Any
+from global_config import LOGGER
 class PlotGrid(QGridLayout):
     def __init__(self, y_data=None,y_ave_data = None,num_meas = None,*args, **kwargs):
         super().__init__(*args,**kwargs)
@@ -49,7 +50,7 @@ class PlotGrid(QGridLayout):
 
             t_keys = list(tmit.keys())
             if not t_keys:
-                print("No TMIT keys to plot.")
+                LOGGER.warning("No TMIT keys to plot.")
                 return
 
             num_points = len(tmit.get(t_keys[0], []))
@@ -61,27 +62,27 @@ class PlotGrid(QGridLayout):
                         continue
                     self.tmit_vs_bsa_plot.plot(x_data, tmit[key], pen=(i, len(t_keys)))
                 except Exception as e:
-                    print(f"[Plot Error] Could not plot {key}: {e}")
+                    LOGGER.error("[Plot Error] Could not plot %s: %s", key, e)
 
             try:
                 ref_key = f"{ref_bpm}:TMIT"
                 mk_pen = pg.mkPen(color=(255, 255, 255), width=5, style=QtCore.Qt.DashLine)
                 self.tmit_vs_bsa_plot.plot(x_data, tmit[ref_key], pen=mk_pen)
             except Exception as e:
-                print(f"[Ref Plot Error] {ref_key} missing or malformed: {e}")
+                LOGGER.error("[Ref Plot Error] %s missing or malformed: %s", ref_key, e)
 
             try:
                 self.ave_tmit_vs_z_splot.setData(list(z_pos.values()), list(tmit_ave.values()))
             except Exception as e:
-                print(f"[Ave TMIT Plot Error] {e}")
+                LOGGER.error("[Ave TMIT Plot Error] %s", e)
 
             try:
                 self.ratios_vs_z_splot.setData(list(z_pos.values()), list(ratios.values()))
             except Exception as e:
-                print(f"[Ratios Plot Error] {e}")
+                LOGGER.error("[Ratios Plot Error] %s", e)
 
         except Exception as e:
-            print(f"[Update Plots Error] {e}")
+            LOGGER.error("[Update Plots Error] %s", e)
 
 
 
@@ -90,7 +91,7 @@ class PlotGrid(QGridLayout):
             self.ironed_tmit_plot.clear()
             t_keys = list(updated_tmit_dict.keys())
             if not t_keys:
-                print("No keys in updated_tmit_dict.")
+                LOGGER.warning("No keys in updated_tmit_dict.")
                 return
 
             num_points = len(updated_tmit_dict.get(t_keys[0], []))
@@ -102,17 +103,17 @@ class PlotGrid(QGridLayout):
                         continue
                     self.ironed_tmit_plot.plot(x_data, updated_tmit_dict[key], pen=(i, len(t_keys)))
                 except Exception as e:
-                    print(f"[Ironed Plot Error] Key: {key}, Error: {e}")
+                    LOGGER.error("[Ironed Plot Error] Key: %s, Error: %s", key, e)
 
             try:
                 ref_key = f"{ref_bpm}:TMIT"
                 mk_pen = pg.mkPen(color=(255, 255, 255), width=5, style=QtCore.Qt.DashLine)
                 self.ironed_tmit_plot.plot(x_data, updated_tmit_dict[ref_key], pen=mk_pen)
             except Exception as e:
-                print(f"[Ref Ironed Plot Error] {ref_key} missing or malformed: {e}")
+                LOGGER.error("[Ref Ironed Plot Error] %s missing or malformed: %s", ref_key, e)
 
         except Exception as e:
-            print(f"[Update Ironed Plot Error] {e}")
+            LOGGER.error("[Update Ironed Plot Error] %s", e)
 
 
     def update_ironed_plot_single(self, updated_tmit_dict: Dict[str, List[float]], ref_bpm: str, dev: str):
@@ -127,7 +128,7 @@ class PlotGrid(QGridLayout):
                 try:
                     self.ironed_tmit_plot.plot(x_data, updated_tmit_dict[key], pen=(i, len(bpms_to_plot)))
                 except Exception as e:
-                    print(f"[Single Ironed Plot Error] {key}: {e}")
+                    LOGGER.error("[Single Ironed Plot Error] %s: %s", key, e)
 
         except Exception as e:
-            print(f"[Update Ironed Single Plot Error] {e}")
+            LOGGER.error("[Update Ironed Single Plot Error] %s", e)

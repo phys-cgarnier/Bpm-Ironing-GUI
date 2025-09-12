@@ -2,6 +2,7 @@ import math
 from typing import Dict, List, Any
 import pprint
 import copy
+from global_config import LOGGER
 class IroningCleaningTool():
     def __init__(self,pulse_id_dict: dict,tmit_dict:dict, tmit_aves_dict:dict, num_measurements:int)->dict:
         self.pulse_id_dict = pulse_id_dict
@@ -133,7 +134,8 @@ class IroningCleaningTool():
                         temp_count = val_is_pv_counts
                         temp_pid_at_ith_measurement= key_is_pid
             else:
-                print('bad data in get nord id failures value is not a dictionary it is of type: ',type(val_is_pids_vs_pv_counts))
+                LOGGER.warning('Bad data in get nord id failures value is not a dictionary' \
+                ' it is of type: %s', type(val_is_pids_vs_pv_counts))
             #print(f'highest count is {temp_count} with pid {temp_pid_at_ith_measurement}')
   
             highest_dev_count_pid_per_meas[key_is_ith_measurement] = temp_pid_at_ith_measurement
@@ -163,7 +165,7 @@ class IroningCleaningTool():
             # might need to use dict_to_scan[key].all()
             if dict_to_scan[key] < low_bound or math.isnan(dict_to_scan[key]):
                 out_of_range_list.append(key)
-                print(f'{key} out of range')
+                LOGGER.warning(f'{key} out of range for acceptable tmit average value')
         return out_of_range_list      
 
     @staticmethod
@@ -221,5 +223,5 @@ class IroningCleaningTool():
         for dev in temp:
             if dev not in totals:
                 totals.append(dev)
-        print(totals)
+        LOGGER.warning("[SUMMARY] Total device failures: %s", totals)
         return totals
