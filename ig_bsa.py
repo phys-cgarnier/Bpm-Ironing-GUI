@@ -6,7 +6,7 @@ import numpy as np
 from global_config import LOGGER
 class BpmBSABuffer():
     def __init__(self,num_measurements:int,dest_masks:str,dest_mode:str,bpm_list:list,*args,**kwargs):
-        self.bpm_bsa_buffer = BSABuffer('Chris BPM Testing', user= 'cgarnier')
+        self.bpm_bsa_buffer = BSABuffer(name='Chris BPM Testing', user= 'cgarnier')
         self.buffer_num = self.bpm_bsa_buffer.number
         LOGGER.info('Buffer # : %s', self.buffer_num)
         self.bpm_bsa_buffer.destination_masks = dest_masks
