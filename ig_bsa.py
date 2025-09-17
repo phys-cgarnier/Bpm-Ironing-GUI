@@ -80,7 +80,7 @@ class BpmBSABuffer():
 
         if not self.active_bpm_tmit_pvs:
             LOGGER.error("No active BPM TMIT PVs found.")
-            return {}, {}, {}
+            return {}, {}, {}, self.failed_devices
 
         LOGGER.info('%d active PVs found. Fetching BSA data...', len(self.active_bpm_tmit_pvs))
 
@@ -137,4 +137,7 @@ class BpmBSABuffer():
             for k, v in self.failed_devices.items():
                 LOGGER.warning("  - %s: %s", k, v)
 
-        return self.bpm_tmit_dictionary, self.bpm_tmit_averages_dictionary, self.pulse_id_data
+        return (self.bpm_tmit_dictionary,
+                self.bpm_tmit_averages_dictionary,
+                self.pulse_id_data,
+                self.failed_devices)
