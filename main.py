@@ -48,8 +48,9 @@ class BpmOnyx(Display):
         self.ironing_modes = IRONING_MODE_LABELS
         self.run_modes = RUN_MODE_LABELS
         self.rate_pv_mappings = RATE_PV_MAPPINGS
-        #TODO: check if rate before aquiring
-        
+        self.warning_message = ''
+        self.total_failures = [] 
+
         self.rate_pv_name = RATE_PV_MAPPINGS[DEST_MASK[0]]
         self.bpms_in_line = SC_BPM_COMMON_LIST + SC_BSYD_LIST #### this gets updated when a beamline is chosen
         self.bpms_for_bsa = self.bpms_in_line
@@ -502,16 +503,8 @@ class BpmOnyx(Display):
         The dictionaries are checked to ensure the data acquired is up the standard previously chosen by Sonya.
         If it isn't is is the device that has failed data is discarded from the list of BPMS to iron.
         '''
-        rate = epics.PV(self.rate_pv_name).get()
-        LOGGER.info(f'Attempting to prep assests with beam rate {rate}Hz')
-        if epics.PV(self.rate_pv_name).get() < 1: 
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Warning)
-            msg.setText(f'Beamline rate is below 1Hz. Current rate is {rate} Hz. \n'
-                        'Please try again when rate is above 1 Hz.')
-            msg.setWindowTitle('Warning')
-            msg.setStandardButtons(QMessageBox.Ok)
-            retval = msg.exec_()
+        if self.rate_check():
+            self.raise_warning(lambda: True, self.warning_message)
             return
         
         self.acquisition_ctrl_button.setText('Processing... Please wait for plots to load')
@@ -532,18 +525,51 @@ class BpmOnyx(Display):
         self.acquisition_ctrl_button.setText('Prepare Ironing')
 
 
+    def raise_warning(self, condition: callable, reason: str):
+        if condition():
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText(reason)
+            msg.setWindowTitle('Warning')
+            msg.setStandardButtons(QMessageBox.Ok)
+            retval = msg.exec_()
+            return True
+        return False
+    
+    def rate_check(self):
+        rate = epics.PV(self.rate_pv_name).get()
+        LOGGER.info(f'Attempting to prep assests with beam rate {rate}Hz')
+        if rate < 10:
+            self.warning_message =(f'Beamline rate is below 10Hz. Current rate is {rate} Hz. \n'
+                        'Please try again when rate is above 10 Hz.')
+            return True
+        return False
+    
+    def ref_target_failures(self):
+        #if any([self.ref_bpm, self.target_bpm] in self.total_failures):
+        if self.ref_bpm in self.total_failures or self.target_bpm in self.total_failures and self.ironing_mode==2:
+            LOGGER.warning('Either the reference or target bpm has failed data cleaning')
+            self.warning_message = (f'Either the reference BPM: {self.ref_bpm} or the target BPM: {self.target_bpm} \n'
+                                    'has failed data cleaning and will not be ironed. Please rerun preparation.')
+            return True
+        return False
+
     def setup_bsa_buffer(self):
         '''
         Sets up a bsa buffer and gathers tmit information like average tmit of the device over the number of measurements taken. 
         self.bpm_tmits is 
         '''
         self.num = int(self.class_macros['num'])
-        LOGGER.info(f'Using: {self.bpms_for_bsa}')
+        LOGGER.info((f'BSA Aquistion with reference BPM: {self.ref_bpm}, and Destination Mask: {self.dest_mask}'))
         self.bsa_buffer = BpmBSABuffer( self.num,self.dest_mask,self.class_macros['mode'],self.bpms_for_bsa)
         self.buffer_num_rdbk.setText(str(self.bsa_buffer.buffer_num))
         self.buffer_num_rdbk.repaint()
         self.bsa_buffer.start_buffer()
-        self.bpm_tmits, self.bpm_ave_tmits, self.pulse_id_data = self.bsa_buffer.get_tmit_buffers()
+        (self.bpm_tmits,
+        self.bpm_ave_tmits,
+        self.pulse_id_data,
+        failed_bsa_devices) = self.bsa_buffer.get_tmit_buffers()
+        self.total_failures += [':'.join(key.split(':')[:3]) for key in failed_bsa_devices.keys()]
         self.bsa_buffer.release_buffer()
         
     def prep_all_assets(self):
@@ -566,10 +592,14 @@ class BpmOnyx(Display):
         self.cleaned_ave_tmits_dict,
         self.bpm_pid_counts_by_meas,
         self.bpm_pid_devs_by_meas,
-        self.total_failures ) = self.cleaning_tool.return_all_dictionaries()
+        cleaning_failures ) = self.cleaning_tool.return_all_dictionaries()
+        self.total_failures += cleaning_failures
 
         LOGGER.warning(f'Printing total failures: {self.total_failures}')
-
+        if self.ref_target_failures():
+            self.raise_warning(lambda: True, self.warning_message)
+            return
+        
         self.create_scl_pv_dicts(self.cleaned_tmit_dict)
 
         self.ironing_tool = BpmIroningTool()
@@ -598,8 +628,8 @@ class BpmOnyx(Display):
             ':QSCL',
             self.ref_bpm
     )
-        pprint.pprint(self.bpm_fw_scl_pvs)
-        pprint.pprint(self.put_fwscl_vals)
+        #pprint.pprint(self.bpm_fw_scl_pvs)
+        #pprint.pprint(self.put_fwscl_vals)
 
     def create_scl_pv_dicts(self,tmit_dict:Dict[str,Any]):
         # set up class attributes for plotting
